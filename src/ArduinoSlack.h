@@ -28,8 +28,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 #define SLACK_FINGERPRINT "C1 0D 53 49 D2 3E E5 2B A2 61 D5 9E 6F 99 0D 3D FD 8B B2 B3"
 #define SLACK_TIMEOUT 2000
 
+#define SLACK_PRESENCE_AWAY "away"
+#define SLACK_PRESENCE_AUTO "auto"
 
 #define SLACK_USERS_PROFILE_SET_ENDPOINT "/api/users.profile.set"
+#define SLACK_USERS_SET_PRESENCE_ENDPOINT "/api/users.setPresence?presence=%s"
 
 struct SlackProfile
 {
@@ -45,8 +48,9 @@ class ArduinoSlack
   public:
     ArduinoSlack(Client &client, char *bearerToken);
 
-    int makePostRequest(char *command, char *body);
+    int makePostRequest(char *command, char *body, char *contentType = "application/json");
     SlackProfile setCustomStatus(char *text, char *emoji, int expiration = 0);
+    bool setPresence(char *presence);
     int portNumber = 443;
     int profileBufferSize = 10000;
     bool _debug = false;

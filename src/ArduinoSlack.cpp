@@ -24,7 +24,7 @@ ArduinoSlack::ArduinoSlack(Client &client, char *bearerToken)
     this->_bearerToken = bearerToken;
 }
 
-int ArduinoSlack::makePostRequest(char *command, char *body)
+int ArduinoSlack::makePostRequest(char *command, char *body, char *contentType)
 {
     client->flush();
     client->setTimeout(SLACK_TIMEOUT);
@@ -47,7 +47,8 @@ int ArduinoSlack::makePostRequest(char *command, char *body)
     client->println(SLACK_HOST);
 
     client->println(F("Accept: application/json"));
-    client->println(F("Content-Type: application/json"));
+    client->print(F("Content-Type: "));
+    client->println(contentType);
 
     client->print(F("Authorization: Bearer "));
     client->println(_bearerToken);
@@ -71,6 +72,53 @@ int ArduinoSlack::makePostRequest(char *command, char *body)
     int statusCode = getHttpStatusCode();
     skipHeaders();
     return statusCode;
+}
+
+bool ArduinoSlack::setPresence(char *presence){
+    char command[100];
+    sprintf(command, SLACK_USERS_SET_PRESENCE_ENDPOINT, presence);
+    if (_debug)
+    {
+        Serial.println(command);
+    }
+
+    // Get from https://arduinojson.org/v6/assistant/
+    const size_t bufferSize = 1000;
+    bool okStatus = false;
+    if (makePostRequest(command, "", "text/plain") == 200)
+    {
+        // Allocate DynamicJsonDocument
+        DynamicJsonDocument doc(bufferSize);
+
+        // Parse JSON object
+        DeserializationError error = deserializeJson(doc, *client);
+        if (!error)
+        {
+            if(_debug){
+                char temp[500];
+                serializeJson(doc, temp);
+                Serial.println(temp);
+            }
+            okStatus = doc["ok"];
+            if(!okStatus){
+                if(doc.containsKey("error")){
+                    const char* errorMsg = doc["error"];
+                    Serial.print(F("Got the following error: "));
+                    Serial.println(errorMsg);
+                } else {
+                    Serial.print(F("Unkown Error"));
+                }
+            }
+
+        }
+        else
+        {
+            Serial.print(F("deserializeJson() failed with code "));
+            Serial.println(error.c_str());
+        }
+    }
+    closeClient();
+    return okStatus;
 }
 
 SlackProfile ArduinoSlack::setCustomStatus(char *text, char *emoji, int expiration ){
