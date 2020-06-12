@@ -8,7 +8,13 @@ An arduino library to wrap the Slack API
 - Name your app anything, set the "Development Slack Workspace" to the workspace you want to update your status in
 - This will bring you to a new page, on the left hand-side there is a menu. Click "OAuth & Permissions"
 - Go down to "Scopes", then under "User Token Scopes", click the "Add an OAuth Scope" button
-- start typing in "users.profile.write" and click on it when it pops up
+- Add the scopes you need. Here is a list of supported features in this library and their required scopes:
+
+| Enpoint        | scope           |
+| ------------- |-------------|
+| setPresence      | users:write |
+| setCustomStatus      | users.profile:write |
+
 - scroll up to the top of the page and click "install app to workspace"
 - Click "Allow" on the next page
 - You will now have an OAuth Access Token up the top of the page, this is uses as the SLACK_ACCESS_TOKEN
