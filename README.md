@@ -1,6 +1,13 @@
 # arduino-slack-api
 An arduino library to wrap the Slack API
 
+Currently the library supports updating your Presence and setting a Custom Status.
+
+![img](https://i.imgur.com/UUIQj2P.jpg)
+
+## Help support what I do!
+
+I have created a lot of different Arduino libraries that I hope people can make use of. [If you enjoy my work, please consider becoming a Github sponsor!](https://github.com/sponsors/witnessmenow/)
 
 ### Getting Auth Token (this may change)
 
