@@ -1,17 +1,17 @@
 /*******************************************************************
-    Sets a custom status on your slack account. It will toggle between
-    two every 30 seconds
+    Toggles between a presence of "away" and "auto" on your slack account. 
+    It will toggle between the two every 30 seconds
+
+    (FYI: You can't set to "online"- https://api.slack.com/methods/users.setPresence)
 
     You will need a bearer token, see readme for more details
 
-    You will also need to be on version 2.5 or higher of the ESP8266 core
-
     Parts:
-    D1 Mini ESP8266 * - http://s.click.aliexpress.com/e/uzFUnIe
+    ESP32 D1 Mini style Dev board* - http://s.click.aliexpress.com/e/C6ds4my
 
- *  * = Affiliate
+ *  * = Affilate
 
-    If you find what I do usefuland would like to support me,
+    If you find what I do useful and would like to support me,
     please consider becoming a sponsor on Github
     https://github.com/sponsors/witnessmenow/
 
@@ -26,7 +26,7 @@
 // Standard Libraries
 // ----------------------------
 
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 
 // ----------------------------
@@ -54,90 +54,72 @@ char password[] = "password"; // your network password
 
 //------- ---------------------- ------
 
+// including a "slack_server_cert" variable
+// header is included as part of the ArduinoSlack libary
+#include <ArduinoSlackCert.h>
+
 WiFiClientSecure client;
 ArduinoSlack slack(client, SLACK_ACCESS_TOKEN);
 
 unsigned long delayBetweenRequests = 30000; // Time between requests (1 minute)
 unsigned long requestDueTime;               //time when request due
 
-bool firstStatus = true;
+bool isPresenceAway = false;
 
 void setup()
 {
 
     Serial.begin(115200);
 
-    // Set WiFi to station mode and disconnect from an AP if it was Previously
-    // connected
     WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
-    delay(100);
-
-    // Attempt to connect to Wifi network:
-    Serial.print("Connecting Wifi: ");
-    Serial.println(ssid);
     WiFi.begin(ssid, password);
+    Serial.println("");
+
+    // Wait for connection
     while (WiFi.status() != WL_CONNECTED)
     {
-        Serial.print(".");
         delay(500);
+        Serial.print(".");
     }
     Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    IPAddress ip = WiFi.localIP();
-    Serial.println(ip);
+    Serial.print("Connected to ");
+    Serial.println(ssid);
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
 
-    client.setFingerprint(SLACK_FINGERPRINT);
+    client.setCACert(slack_server_cert);
 
     // If you want to enable some extra debugging
     // uncomment the "#define SLACK_ENABLE_DEBUG" in ArduinoSlack.h
-}
-
-void displayProfile(SlackProfile profile)
-{
-    if (!profile.error)
-    {
-        Serial.println("--------- Profile ---------");
-
-        Serial.print("Display Name: ");
-        Serial.println(profile.displayName);
-
-        Serial.print("Status Text: ");
-        Serial.println(profile.statusText);
-
-        Serial.print("Status Emoji: ");
-        Serial.println(profile.statusEmoji);
-
-        Serial.print("Status Expiration: ");
-        Serial.println(profile.statusExpiration);
-
-        Serial.println("------------------------");
-    }
-    else
-    {
-        Serial.println("error getting profile");
-    }
 }
 
 void loop()
 {
     if (millis() > requestDueTime)
     {
-        SlackProfile profile;
-        if (firstStatus)
+        if (isPresenceAway)
         {
-            profile = slack.setCustomStatus("I am the first status", ":sparkling_heart:");
+            if (slack.setPresence(SLACK_PRESENCE_AUTO))
+            {
+                Serial.println("Set presence to Auto");
+            }
+            else
+            {
+                Serial.println("Failed to set presence to Auto");
+            }
         }
         else
         {
-            profile = slack.setCustomStatus("I am the second status", ":v:");
-            // There is an optional third parameter which takes a Unix timestamp for
-            // when this custom status expires:
-            // slack.setCustomStatus("I am the second status", ":v:", 1532627506);
+            if (slack.setPresence(SLACK_PRESENCE_AWAY))
+            {
+                Serial.println("Set presence to Away");
+            }
+            else
+            {
+                Serial.println("Failed to set presence to Away");
+            }
         }
-        firstStatus = !firstStatus;
-        displayProfile(profile);
+        isPresenceAway = !isPresenceAway;
         requestDueTime = millis() + delayBetweenRequests;
     }
 }

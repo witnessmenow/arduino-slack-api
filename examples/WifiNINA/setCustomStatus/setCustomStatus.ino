@@ -1,13 +1,13 @@
 /*******************************************************************
-    Sets a custom status on your slack account. It will toggle between
-    two every 30 seconds
+    Sets a custom status on your slack account using 
+    Arduino WifiNINA boards (e.g. Nano IoT)  
+    
+    It will update every 30 seconds
 
     You will need a bearer token, see readme for more details
 
-    You will also need to be on version 2.5 or higher of the ESP8266 core
-
     Parts:
-    D1 Mini ESP8266 * - http://s.click.aliexpress.com/e/uzFUnIe
+    Arduino Nano 33 IOT - https://store.arduino.cc/arduino-nano-33-iot
 
  *  * = Affiliate
 
@@ -25,13 +25,18 @@
 // ----------------------------
 // Standard Libraries
 // ----------------------------
-
-#include <ESP8266WiFi.h>
-#include <WiFiClientSecure.h>
+#include <SPI.h>
 
 // ----------------------------
 // Additional Libraries - each one of these will need to be installed.
 // ----------------------------
+
+#include <WiFiNINA.h>
+// Library for using network features of the official Arudino
+// Wifi Boards (MKR WiFi 1010, Nano 33 IOT etc)
+
+// Search for "nina" in the Arduino Library Manager
+// https://github.com/arduino-libraries/WiFiNINA
 
 #include <ArduinoSlack.h>
 // Library for connecting to the Slack API
@@ -54,7 +59,9 @@ char password[] = "password"; // your network password
 
 //------- ---------------------- ------
 
-WiFiClientSecure client;
+int status = WL_IDLE_STATUS;
+
+WiFiSSLClient client;
 ArduinoSlack slack(client, SLACK_ACCESS_TOKEN);
 
 unsigned long delayBetweenRequests = 30000; // Time between requests (1 minute)
@@ -64,31 +71,41 @@ bool firstStatus = true;
 
 void setup()
 {
-
-    Serial.begin(115200);
-
-    // Set WiFi to station mode and disconnect from an AP if it was Previously
-    // connected
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
-    delay(100);
-
-    // Attempt to connect to Wifi network:
-    Serial.print("Connecting Wifi: ");
-    Serial.println(ssid);
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED)
+    //Initialize serial and wait for port to open:
+    Serial.begin(9600);
+    while (!Serial)
     {
-        Serial.print(".");
-        delay(500);
+        ; // wait for serial port to connect. Needed for native USB port only
     }
-    Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    IPAddress ip = WiFi.localIP();
-    Serial.println(ip);
 
-    client.setFingerprint(SLACK_FINGERPRINT);
+    // check for the WiFi module:
+    if (WiFi.status() == WL_NO_MODULE)
+    {
+        Serial.println("Communication with WiFi module failed!");
+        // don't continue
+        while (true)
+            ;
+    }
+
+    String fv = WiFi.firmwareVersion();
+    if (fv < "1.0.0")
+    {
+        Serial.println("Please upgrade the firmware");
+    }
+
+    // attempt to connect to WiFi network:
+    while (status != WL_CONNECTED)
+    {
+        Serial.print("Attempting to connect to SSID: ");
+        Serial.println(ssid);
+        // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+        status = WiFi.begin(ssid, password);
+
+        // wait 10 seconds for connection:
+        delay(10000);
+    }
+    Serial.println("Connected to wifi");
+    printWiFiStatus();
 
     // If you want to enable some extra debugging
     // uncomment the "#define SLACK_ENABLE_DEBUG" in ArduinoSlack.h
@@ -140,4 +157,22 @@ void loop()
         displayProfile(profile);
         requestDueTime = millis() + delayBetweenRequests;
     }
+}
+
+void printWiFiStatus()
+{
+    // print the SSID of the network you're attached to:
+    Serial.print("SSID: ");
+    Serial.println(WiFi.SSID());
+
+    // print your board's IP address:
+    IPAddress ip = WiFi.localIP();
+    Serial.print("IP Address: ");
+    Serial.println(ip);
+
+    // print the received signal strength:
+    long rssi = WiFi.RSSI();
+    Serial.print("signal strength (RSSI):");
+    Serial.print(rssi);
+    Serial.println(" dBm");
 }

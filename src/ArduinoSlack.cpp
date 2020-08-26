@@ -3,34 +3,24 @@ Copyright (c) 2020 Brian Lough. All right reserved.
 
 ArduinoSlack - An Arduino library to wrap the Slack API
 
-This library is free software; you can redistribute it and/or
-modify it under the terms of the GNU Lesser General Public
-License as published by the Free Software Foundation; either
-version 2.1 of the License, or (at your option) any later version.
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-Lesser General Public License for more details.
-You should have received a copy of the GNU Lesser General Public
-License along with this library; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+MIT License
 */
 
 #include "ArduinoSlack.h"
 
-ArduinoSlack::ArduinoSlack(Client &client, char *bearerToken)
+ArduinoSlack::ArduinoSlack(Client &client, const char *bearerToken)
 {
     this->client = &client;
     this->_bearerToken = bearerToken;
 }
 
-int ArduinoSlack::makePostRequest(char *command, char *body, char *contentType)
+int ArduinoSlack::makePostRequest(const char *command, const char *body, const char *contentType)
 {
     client->flush();
     client->setTimeout(SLACK_TIMEOUT);
     if (!client->connect(SLACK_HOST, portNumber))
     {
-        Serial.println(F("Connection failed"));
+        SLACK_SERIAL_LN(F("Connection failed"));
         return false;
     }
 
@@ -65,7 +55,7 @@ int ArduinoSlack::makePostRequest(char *command, char *body, char *contentType)
 
     if (client->println() == 0)
     {
-        Serial.println(F("Failed to send request"));
+        SLACK_SERIAL_LN(F("Failed to send request"));
         return false;
     }
 
@@ -74,13 +64,11 @@ int ArduinoSlack::makePostRequest(char *command, char *body, char *contentType)
     return statusCode;
 }
 
-bool ArduinoSlack::setPresence(char *presence){
+bool ArduinoSlack::setPresence(const char *presence)
+{
     char command[100];
     sprintf(command, SLACK_USERS_SET_PRESENCE_ENDPOINT, presence);
-    if (_debug)
-    {
-        Serial.println(command);
-    }
+    SLACK_DEBUG_SERIAL_LN(command);
 
     // Get from https://arduinojson.org/v6/assistant/
     const size_t bufferSize = 1000;
@@ -94,43 +82,44 @@ bool ArduinoSlack::setPresence(char *presence){
         DeserializationError error = deserializeJson(doc, *client);
         if (!error)
         {
-            if(_debug){
-                char temp[500];
-                serializeJson(doc, temp);
-                Serial.println(temp);
-            }
+            SLACK_DEBUG_SERIAL_LN(F("parsed Json Object: "));
+#ifdef SLACK_ENABLE_DEBUG
+            serializeJson(doc, Serial);
+#endif
             okStatus = doc["ok"];
-            if(!okStatus){
-                if(doc.containsKey("error")){
-                    const char* errorMsg = doc["error"];
-                    Serial.print(F("Got the following error: "));
-                    Serial.println(errorMsg);
-                } else {
-                    Serial.print(F("Unkown Error"));
+            if (!okStatus)
+            {
+                if (doc.containsKey("error"))
+                {
+                    const char *errorMsg = doc["error"];
+                    SLACK_DEBUG_SERIAL(F("Got the following error: "));
+                    SLACK_DEBUG_SERIAL_LN(errorMsg);
+                }
+                else
+                {
+                    SLACK_DEBUG_SERIAL_LN(F("Unkown Error"));
                 }
             }
-
         }
         else
         {
-            Serial.print(F("deserializeJson() failed with code "));
-            Serial.println(error.c_str());
+            SLACK_DEBUG_SERIAL(F("deserializeJson() failed with code "));
+            SLACK_DEBUG_SERIAL_LN(error.c_str());
         }
     }
     closeClient();
     return okStatus;
 }
 
-SlackProfile ArduinoSlack::setCustomStatus(char *text, char *emoji, int expiration ){
+SlackProfile ArduinoSlack::setCustomStatus(const char *text, const char *emoji, int expiration)
+{
     char body[300];
-    sprintf(body, setEnpointBody, text, emoji, expiration);
-    if (_debug)
-    {
-        Serial.println(body);
-    }
+    sprintf(body, setEndpointBody, text, emoji, expiration);
+    SLACK_DEBUG_SERIAL_LN(body);
 
     // Get from https://arduinojson.org/v6/assistant/
     const size_t bufferSize = profileBufferSize;
+
     SlackProfile profile;
     // This flag will get cleared if all goes well
     profile.error = true;
@@ -143,11 +132,15 @@ SlackProfile ArduinoSlack::setCustomStatus(char *text, char *emoji, int expirati
         DeserializationError error = deserializeJson(doc, *client);
         if (!error)
         {
+            SLACK_DEBUG_SERIAL_LN(F("parsed Json Object: "));
+#ifdef SLACK_ENABLE_DEBUG
+            serializeJson(doc, Serial);
+#endif
             JsonObject profileObj = doc["profile"];
 
-            profile.displayName = (char *) profileObj["display_name"].as<char *>(); 
-            profile.statusText = (char *) profileObj["status_text"].as<char *>(); 
-            profile.statusEmoji = (char *) profileObj["status_emoji"].as<char *>(); 
+            profile.displayName = (char *)profileObj["display_name"].as<char *>();
+            profile.statusText = (char *)profileObj["status_text"].as<char *>();
+            profile.statusEmoji = (char *)profileObj["status_emoji"].as<char *>();
 
             profile.statusExpiration = profileObj["status_expiration"].as<int>();
 
@@ -155,35 +148,33 @@ SlackProfile ArduinoSlack::setCustomStatus(char *text, char *emoji, int expirati
         }
         else
         {
-            Serial.print(F("deserializeJson() failed with code "));
-            Serial.println(error.c_str());
+            SLACK_DEBUG_SERIAL(F("deserializeJson() failed with code "));
+            SLACK_DEBUG_SERIAL_LN(error.c_str());
         }
     }
     closeClient();
     return profile;
 }
 
-
-void ArduinoSlack::skipHeaders()
+void ArduinoSlack::skipHeaders(bool tossUnexpectedForJSON)
 {
     // Skip HTTP headers
-    char endOfHeaders[] = "\r\n\r\n";
-    if (!client->find(endOfHeaders))
+    if (!client->find("\r\n\r\n"))
     {
-        Serial.println(F("Invalid response"));
+        SLACK_SERIAL_LN(F("Invalid response"));
         return;
     }
 
-    // Was getting stray characters between the headers and the body
-    // This should toss them away
-    while (client->available() && client->peek() != '{')
+    if (tossUnexpectedForJSON)
     {
-        char c = 0;
-        client->readBytes(&c, 1);
-        if (_debug)
+        // Was getting stray characters between the headers and the body
+        // This should toss them away
+        while (client->available() && client->peek() != '{')
         {
-            Serial.print("Tossing an unexpected character: ");
-            Serial.println(c);
+            char c = 0;
+            client->readBytes(&c, 1);
+            SLACK_DEBUG_SERIAL(F("Tossing an unexpected character: "));
+            SLACK_DEBUG_SERIAL_LN(c);
         }
     }
 }
@@ -191,10 +182,13 @@ void ArduinoSlack::skipHeaders()
 int ArduinoSlack::getHttpStatusCode()
 {
     // Check HTTP status
-    if(client->find("HTTP/1.1")){
+    if (client->find("HTTP/1.1"))
+    {
         int statusCode = client->parseInt();
+        SLACK_DEBUG_SERIAL(F("Status Code: "));
+        SLACK_DEBUG_SERIAL_LN(statusCode);
         return statusCode;
-    } 
+    }
 
     return -1;
 }
@@ -203,10 +197,8 @@ void ArduinoSlack::closeClient()
 {
     if (client->connected())
     {
-        if (_debug)
-        {
-            Serial.println(F("Closing client"));
-        }
+
+        SLACK_DEBUG_SERIAL_LN(F("Closing client"));
         client->stop();
     }
 }

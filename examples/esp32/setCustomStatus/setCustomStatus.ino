@@ -4,14 +4,12 @@
 
     You will need a bearer token, see readme for more details
 
-    You will also need to be on version 2.5 or higher of the ESP8266 core
-
     Parts:
-    D1 Mini ESP8266 * - http://s.click.aliexpress.com/e/uzFUnIe
+    ESP32 D1 Mini style Dev board* - http://s.click.aliexpress.com/e/C6ds4my
 
  *  * = Affiliate
 
-    If you find what I do usefuland would like to support me,
+    If you find what I do useful and would like to support me,
     please consider becoming a sponsor on Github
     https://github.com/sponsors/witnessmenow/
 
@@ -26,7 +24,7 @@
 // Standard Libraries
 // ----------------------------
 
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 
 // ----------------------------
@@ -54,6 +52,10 @@ char password[] = "password"; // your network password
 
 //------- ---------------------- ------
 
+// including a "slack_server_cert" variable
+// header is included as part of the ArduinoSlack libary
+#include <ArduinoSlackCert.h>
+
 WiFiClientSecure client;
 ArduinoSlack slack(client, SLACK_ACCESS_TOKEN);
 
@@ -67,28 +69,23 @@ void setup()
 
     Serial.begin(115200);
 
-    // Set WiFi to station mode and disconnect from an AP if it was Previously
-    // connected
     WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
-    delay(100);
-
-    // Attempt to connect to Wifi network:
-    Serial.print("Connecting Wifi: ");
-    Serial.println(ssid);
     WiFi.begin(ssid, password);
+    Serial.println("");
+
+    // Wait for connection
     while (WiFi.status() != WL_CONNECTED)
     {
-        Serial.print(".");
         delay(500);
+        Serial.print(".");
     }
     Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    IPAddress ip = WiFi.localIP();
-    Serial.println(ip);
+    Serial.print("Connected to ");
+    Serial.println(ssid);
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
 
-    client.setFingerprint(SLACK_FINGERPRINT);
+    client.setCACert(slack_server_cert);
 
     // If you want to enable some extra debugging
     // uncomment the "#define SLACK_ENABLE_DEBUG" in ArduinoSlack.h
