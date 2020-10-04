@@ -166,6 +166,22 @@ SlackProfile ArduinoSlack::setCustomStatus(const char *text, const char *emoji, 
     return profile;
 }
 
+bool ArduinoSlack::setSnooze(int numMinutes)
+{
+    char command[200];
+    sprintf(command, SLACK_DND_SET_SNOOZE_ENDPOINT, _bearerToken, numMinutes);
+    SLACK_DEBUG_SERIAL_LN(command);
+
+    const size_t bufferSize = 1000;
+    return simpleHandler(makeGetRequest(command, ""), bufferSize);
+}
+
+bool ArduinoSlack::endSnooze()
+{
+    const size_t bufferSize = 1000;
+    return simpleHandler(makePostRequest(SLACK_DND_END_SNOOZE_ENDPOINT, ""), bufferSize);
+}
+
 bool ArduinoSlack::simpleHandler(int response, const size_t bufferSize)
 {
     bool okStatus = false;

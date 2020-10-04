@@ -45,6 +45,9 @@ MIT License
 #define SLACK_USERS_PROFILE_SET_ENDPOINT "/api/users.profile.set"
 #define SLACK_USERS_SET_PRESENCE_ENDPOINT "/api/users.setPresence?presence=%s"
 
+#define SLACK_DND_SET_SNOOZE_ENDPOINT "/api/dnd.setSnooze?token=%s&num_minutes=%d"
+#define SLACK_DND_END_SNOOZE_ENDPOINT "/api/dnd.endSnooze"
+
 struct SlackProfile
 {
   char *displayName;
@@ -63,6 +66,8 @@ public:
   int makeGetRequest(const char *command, const char *body, const char *contentType = "application/x-www-form-urlencoded");
   SlackProfile setCustomStatus(const char *text, const char *emoji, int expiration = 0);
   bool setPresence(const char *presence);
+  bool setSnooze(int numMinutes = 1);
+  bool endSnooze();
   int portNumber = 443;
   int profileBufferSize = 10000;
   Client *client;
