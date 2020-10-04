@@ -14,6 +14,53 @@ ArduinoSlack::ArduinoSlack(Client &client, const char *bearerToken)
     this->_bearerToken = bearerToken;
 }
 
+int ArduinoSlack::makeGetRequest(const char *command, const char *body, const char *contentType)
+{
+    client->flush();
+    client->setTimeout(SLACK_TIMEOUT);
+    if (!client->connect(SLACK_HOST, portNumber))
+    {
+        SLACK_SERIAL_LN(F("Connection failed"));
+        return false;
+    }
+
+    // give the esp a breather
+    yield();
+
+    // Send HTTP request
+    client->print(F("GET "));
+    client->print(command);
+    client->println(F(" HTTP/1.1"));
+
+    //Headers
+    client->print(F("Host: "));
+    client->println(SLACK_HOST);
+
+    client->println(F("Accept: application/json"));
+    client->print(F("Content-Type: "));
+    client->println(contentType);
+
+    client->println(F("Cache-Control: no-cache"));
+
+    client->print(F("Content-Length: "));
+    client->println(strlen(body));
+
+    client->println();
+
+    //send Data here?
+    client->print(body);
+
+    if (client->println() == 0)
+    {
+        SLACK_SERIAL_LN(F("Failed to send request"));
+        return false;
+    }
+
+    int statusCode = getHttpStatusCode();
+    skipHeaders();
+    return statusCode;
+}
+
 int ArduinoSlack::makePostRequest(const char *command, const char *body, const char *contentType)
 {
     client->flush();

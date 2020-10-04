@@ -60,6 +60,7 @@ public:
   ArduinoSlack(Client &client, const char *bearerToken);
 
   int makePostRequest(const char *command, const char *body, const char *contentType = "application/json");
+  int makeGetRequest(const char *command, const char *body, const char *contentType = "application/x-www-form-urlencoded");
   SlackProfile setCustomStatus(const char *text, const char *emoji, int expiration = 0);
   bool setPresence(const char *presence);
   int portNumber = 443;
