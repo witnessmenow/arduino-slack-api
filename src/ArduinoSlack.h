@@ -68,6 +68,7 @@ public:
 
 private:
   const char *_bearerToken;
+  bool simpleHandler(int response, const size_t bufferSize);
   int getHttpStatusCode();
   void skipHeaders(bool tossUnexpectedForJSON = true);
   void closeClient();
