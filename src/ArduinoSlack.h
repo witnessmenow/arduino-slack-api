@@ -35,8 +35,8 @@ MIT License
 #endif
 
 #define SLACK_HOST "slack.com"
-// Fingerprint correct as of June 11th 2020
-#define SLACK_FINGERPRINT "C1 0D 53 49 D2 3E E5 2B A2 61 D5 9E 6F 99 0D 3D FD 8B B2 B3"
+// Fingerprint correct as of March 11th 2021
+#define SLACK_FINGERPRINT "71 F8 C3 80 FE 88 B8 AB 30 8B 3F E1 5E B8 F6 76 98 78 CC 30"
 #define SLACK_TIMEOUT 2000
 
 #define SLACK_PRESENCE_AWAY "away"
