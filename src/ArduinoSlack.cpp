@@ -14,6 +14,53 @@ ArduinoSlack::ArduinoSlack(Client &client, const char *bearerToken)
     this->_bearerToken = bearerToken;
 }
 
+int ArduinoSlack::makeGetRequest(const char *command, const char *body, const char *contentType)
+{
+    client->flush();
+    client->setTimeout(SLACK_TIMEOUT);
+    if (!client->connect(SLACK_HOST, portNumber))
+    {
+        SLACK_SERIAL_LN(F("Connection failed"));
+        return false;
+    }
+
+    // give the esp a breather
+    yield();
+
+    // Send HTTP request
+    client->print(F("GET "));
+    client->print(command);
+    client->println(F(" HTTP/1.1"));
+
+    //Headers
+    client->print(F("Host: "));
+    client->println(SLACK_HOST);
+
+    client->println(F("Accept: application/json"));
+    client->print(F("Content-Type: "));
+    client->println(contentType);
+
+    client->println(F("Cache-Control: no-cache"));
+
+    client->print(F("Content-Length: "));
+    client->println(strlen(body));
+
+    client->println();
+
+    //send Data here?
+    client->print(body);
+
+    if (client->println() == 0)
+    {
+        SLACK_SERIAL_LN(F("Failed to send request"));
+        return false;
+    }
+
+    int statusCode = getHttpStatusCode();
+    skipHeaders();
+    return statusCode;
+}
+
 int ArduinoSlack::makePostRequest(const char *command, const char *body, const char *contentType)
 {
     client->flush();
@@ -70,45 +117,8 @@ bool ArduinoSlack::setPresence(const char *presence)
     sprintf(command, SLACK_USERS_SET_PRESENCE_ENDPOINT, presence);
     SLACK_DEBUG_SERIAL_LN(command);
 
-    // Get from https://arduinojson.org/v6/assistant/
     const size_t bufferSize = 1000;
-    bool okStatus = false;
-    if (makePostRequest(command, "", "text/plain") == 200)
-    {
-        // Allocate DynamicJsonDocument
-        DynamicJsonDocument doc(bufferSize);
-
-        // Parse JSON object
-        DeserializationError error = deserializeJson(doc, *client);
-        if (!error)
-        {
-            SLACK_DEBUG_SERIAL_LN(F("parsed Json Object: "));
-#ifdef SLACK_ENABLE_DEBUG
-            serializeJson(doc, Serial);
-#endif
-            okStatus = doc["ok"];
-            if (!okStatus)
-            {
-                if (doc.containsKey("error"))
-                {
-                    const char *errorMsg = doc["error"];
-                    SLACK_DEBUG_SERIAL(F("Got the following error: "));
-                    SLACK_DEBUG_SERIAL_LN(errorMsg);
-                }
-                else
-                {
-                    SLACK_DEBUG_SERIAL_LN(F("Unkown Error"));
-                }
-            }
-        }
-        else
-        {
-            SLACK_DEBUG_SERIAL(F("deserializeJson() failed with code "));
-            SLACK_DEBUG_SERIAL_LN(error.c_str());
-        }
-    }
-    closeClient();
-    return okStatus;
+    return simpleHandler(makePostRequest(command, "", "text/plain"), bufferSize);
 }
 
 SlackProfile ArduinoSlack::setCustomStatus(const char *text, const char *emoji, int expiration)
@@ -154,6 +164,63 @@ SlackProfile ArduinoSlack::setCustomStatus(const char *text, const char *emoji, 
     }
     closeClient();
     return profile;
+}
+
+bool ArduinoSlack::setSnooze(int numMinutes)
+{
+    char command[200];
+    sprintf(command, SLACK_DND_SET_SNOOZE_ENDPOINT, _bearerToken, numMinutes);
+    SLACK_DEBUG_SERIAL_LN(command);
+
+    const size_t bufferSize = 1000;
+    return simpleHandler(makeGetRequest(command, ""), bufferSize);
+}
+
+bool ArduinoSlack::endSnooze()
+{
+    const size_t bufferSize = 1000;
+    return simpleHandler(makePostRequest(SLACK_DND_END_SNOOZE_ENDPOINT, ""), bufferSize);
+}
+
+bool ArduinoSlack::simpleHandler(int response, const size_t bufferSize)
+{
+    bool okStatus = false;
+    if (response == 200)
+    {
+        // Allocate DynamicJsonDocument
+        DynamicJsonDocument doc(bufferSize);
+
+        // Parse JSON object
+        DeserializationError error = deserializeJson(doc, *client);
+        if (!error)
+        {
+            SLACK_DEBUG_SERIAL_LN(F("parsed Json Object: "));
+#ifdef SLACK_ENABLE_DEBUG
+            serializeJson(doc, Serial);
+#endif
+            okStatus = doc["ok"];
+            if (!okStatus)
+            {
+                if (doc.containsKey("error"))
+                {
+                    const char *errorMsg = doc["error"];
+                    SLACK_DEBUG_SERIAL(F("Got the following error: "));
+                    SLACK_DEBUG_SERIAL_LN(errorMsg);
+                }
+                else
+                {
+                    SLACK_DEBUG_SERIAL_LN(F("Unkown Error"));
+                }
+            }
+        }
+        else
+        {
+            SLACK_DEBUG_SERIAL(F("deserializeJson() failed with code "));
+            SLACK_DEBUG_SERIAL_LN(error.c_str());
+        }
+    }
+    closeClient();
+    return okStatus;
 }
 
 void ArduinoSlack::skipHeaders(bool tossUnexpectedForJSON)
