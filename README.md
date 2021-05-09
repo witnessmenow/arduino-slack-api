@@ -21,6 +21,7 @@ I have created a lot of different Arduino libraries that I hope people can make 
 | ------------- |-------------|
 | setPresence      | users:write |
 | setCustomStatus      | users.profile:write |
+| getCurrentStatus      | users.profile:read |
 
 - scroll up to the top of the page and click "install app to workspace"
 - Click "Allow" on the next page

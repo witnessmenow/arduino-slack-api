@@ -16,7 +16,7 @@ MIT License
 #define SLACK_ENABLE_SERIAL
 
 //un-mark following line to enable debug mode
-//#define SLACK_ENABLE_DEBUG
+#define SLACK_ENABLE_DEBUG
 
 #ifdef SLACK_ENABLE_SERIAL
 #define SLACK_SERIAL(STR) Serial.print(STR)
@@ -42,6 +42,7 @@ MIT License
 #define SLACK_PRESENCE_AWAY "away"
 #define SLACK_PRESENCE_AUTO "auto"
 
+#define SLACK_USERS_PROFILE_GET_ENDPOINT "/api/users.profile.get"
 #define SLACK_USERS_PROFILE_SET_ENDPOINT "/api/users.profile.set"
 #define SLACK_USERS_SET_PRESENCE_ENDPOINT "/api/users.setPresence?presence=%s"
 
@@ -59,8 +60,10 @@ class ArduinoSlack
 public:
   ArduinoSlack(Client &client, const char *bearerToken);
 
+  int makeGetRequest(const char *command, const char *contentType = "application/json");
   int makePostRequest(const char *command, const char *body, const char *contentType = "application/json");
   SlackProfile setCustomStatus(const char *text, const char *emoji, int expiration = 0);
+  SlackProfile getCurrentStatus();
   bool setPresence(const char *presence);
   int portNumber = 443;
   int profileBufferSize = 10000;
@@ -68,6 +71,7 @@ public:
 
 private:
   const char *_bearerToken;
+  int makeRequest(const __FlashStringHelper *req, const char *command, const char *body, const char *contentType);
   int getHttpStatusCode();
   void skipHeaders(bool tossUnexpectedForJSON = true);
   void closeClient();

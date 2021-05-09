@@ -14,7 +14,19 @@ ArduinoSlack::ArduinoSlack(Client &client, const char *bearerToken)
     this->_bearerToken = bearerToken;
 }
 
+
+int ArduinoSlack::makeGetRequest(const char *command, const char *contentType)
+{
+    return makeRequest(F("GET "), command, NULL, contentType);
+}
+
 int ArduinoSlack::makePostRequest(const char *command, const char *body, const char *contentType)
+{
+    return makeRequest(F("POST "), command, body, contentType);
+}
+
+
+int ArduinoSlack::makeRequest(const __FlashStringHelper *req, const char *command, const char *body, const char *contentType)
 {
     client->flush();
     client->setTimeout(SLACK_TIMEOUT);
@@ -28,7 +40,7 @@ int ArduinoSlack::makePostRequest(const char *command, const char *body, const c
     yield();
 
     // Send HTTP request
-    client->print(F("POST "));
+    client->print(req);
     client->print(command);
     client->println(F(" HTTP/1.1"));
 
@@ -45,13 +57,16 @@ int ArduinoSlack::makePostRequest(const char *command, const char *body, const c
 
     client->println(F("Cache-Control: no-cache"));
 
-    client->print(F("Content-Length: "));
-    client->println(strlen(body));
+    if (body != NULL)
+    {
+        client->print(F("Content-Length: "));
+        client->println(strlen(body));
 
-    client->println();
+        client->println();
 
-    //send Data here?
-    client->print(body);
+        //send Data here?
+        client->print(body);
+    }
 
     if (client->println() == 0)
     {
@@ -124,6 +139,48 @@ SlackProfile ArduinoSlack::setCustomStatus(const char *text, const char *emoji, 
     // This flag will get cleared if all goes well
     profile.error = true;
     if (makePostRequest(SLACK_USERS_PROFILE_SET_ENDPOINT, body) == 200)
+    {
+        // Allocate DynamicJsonDocument
+        DynamicJsonDocument doc(bufferSize);
+
+        // Parse JSON object
+        DeserializationError error = deserializeJson(doc, *client);
+        if (!error)
+        {
+            SLACK_DEBUG_SERIAL_LN(F("parsed Json Object: "));
+#ifdef SLACK_ENABLE_DEBUG
+            serializeJson(doc, Serial);
+#endif
+            JsonObject profileObj = doc["profile"];
+
+            profile.displayName = (char *)profileObj["display_name"].as<char *>();
+            profile.statusText = (char *)profileObj["status_text"].as<char *>();
+            profile.statusEmoji = (char *)profileObj["status_emoji"].as<char *>();
+
+            profile.statusExpiration = profileObj["status_expiration"].as<int>();
+
+            profile.error = false;
+        }
+        else
+        {
+            SLACK_DEBUG_SERIAL(F("deserializeJson() failed with code "));
+            SLACK_DEBUG_SERIAL_LN(error.c_str());
+        }
+    }
+    closeClient();
+    return profile;
+}
+
+
+SlackProfile ArduinoSlack::getCurrentStatus()
+{
+    // Get from https://arduinojson.org/v6/assistant/
+    const size_t bufferSize = profileBufferSize;
+
+    SlackProfile profile;
+    // This flag will get cleared if all goes well
+    profile.error = true;
+    if (makeGetRequest(SLACK_USERS_PROFILE_GET_ENDPOINT) == 200)
     {
         // Allocate DynamicJsonDocument
         DynamicJsonDocument doc(bufferSize);
