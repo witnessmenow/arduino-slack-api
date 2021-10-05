@@ -17,7 +17,7 @@ I have created a lot of different Arduino libraries that I hope people can make 
 - Go down to "Scopes", then under "User Token Scopes", click the "Add an OAuth Scope" button
 - Add the scopes you need. Here is a list of supported features in this library and their required scopes:
 
-| Enpoint        | scope           |
+| Endpoint        | Scope           |
 | ------------- |-------------|
 | setPresence      | users:write |
 | setCustomStatus      | users.profile:write |
